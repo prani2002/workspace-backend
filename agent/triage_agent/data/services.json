@@ -1,0 +1,7 @@
+{
+  "vpn-gateway":   {"status": "degraded", "detail": "Elevated connection failures since 09:40 UTC", "owner_team": "Network"},
+  "sso":           {"status": "operational", "detail": "No known issues", "owner_team": "Identity"},
+  "web-frontend":  {"status": "operational", "detail": "No known issues", "owner_team": "Application"},
+  "orders-api":    {"status": "outage", "detail": "5xx rate above 40% after release 2026.10.12", "owner_team": "Application"},
+  "primary-db":    {"status": "degraded", "detail": "Connection pool at 95%", "owner_team": "Data platform"}
+}

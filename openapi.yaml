@@ -1,0 +1,191 @@
+openapi: 3.0.3
+info: { title: FDE API, version: 1.0.0, description: "Source of truth for the HTTP contract. Every route needs an operation here with x-scope (MUST id, base, or sample)." }
+servers: [{ url: http://localhost:4000 }]
+tags: [{ name: system }, { name: auth }, { name: admin }, { name: agents }]
+paths:
+  /health:
+    get: { operationId: health, tags: [system], x-scope: base, summary: Liveness probe, responses: { "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Ok" } } } } } }
+  /ready:
+    get:
+      operationId: ready
+      tags: [system]
+      x-scope: base
+      summary: Readiness probe (database connected)
+      responses:
+        "200": { description: Ready, content: { application/json: { schema: { $ref: "#/components/schemas/Ready" } } } }
+        "503": { description: Not ready, content: { application/json: { schema: { $ref: "#/components/schemas/Ready" } } } }
+  /api/v1/system/status:
+    get:
+      operationId: systemStatus
+      tags: [system]
+      x-scope: base
+      summary: Public status flags (always reachable, even in maintenance)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SystemStatus" } } } }
+  /openapi.yaml:
+    get: { operationId: openapiSpec, tags: [system], x-scope: base, summary: This document, responses: { "200": { description: YAML, content: { text/yaml: { schema: { type: string } } } } } }
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      x-scope: base
+      summary: Sign in; sets httpOnly session cookies and a csrf_token cookie
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/LoginRequest" } } } }
+      responses:
+        "200": { description: Signed in, content: { application/json: { schema: { $ref: "#/components/schemas/UserEnvelope" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+  /api/v1/auth/refresh:
+    post:
+      operationId: refresh
+      tags: [auth]
+      x-scope: base
+      summary: Rotate the refresh token and issue a new access token (send X-CSRF-Token)
+      responses:
+        "200": { description: Refreshed, content: { application/json: { schema: { $ref: "#/components/schemas/UserEnvelope" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      x-scope: base
+      summary: Revoke the session (send X-CSRF-Token)
+      responses:
+        "204": { description: Signed out }
+        "403": { $ref: "#/components/responses/Error" }
+  /api/v1/auth/me:
+    get:
+      operationId: me
+      tags: [auth]
+      x-scope: base
+      summary: Current user
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/UserEnvelope" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+  /api/v1/agents/{name}/run:
+    post:
+      operationId: runAgent
+      tags: [agents]
+      x-scope: sample
+      summary: Run a registered agent (idempotent)
+      parameters:
+        - { name: name, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AgentRunRequest" } } } }
+      responses:
+        "201": { description: Run completed, content: { application/json: { schema: { $ref: "#/components/schemas/AgentRunEnvelope" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+        "504": { $ref: "#/components/responses/Error" }
+  /api/v1/agents/runs:
+    get:
+      operationId: listAgentRuns
+      tags: [agents]
+      x-scope: sample
+      summary: Your recent agent runs
+      parameters: [{ name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AgentRunList" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+  /api/v1/admin/metrics:
+    get:
+      operationId: adminMetrics
+      tags: [admin]
+      x-scope: base
+      summary: Runtime metrics (admin)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Metrics" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+  /api/v1/admin/audit:
+    get:
+      operationId: adminAudit
+      tags: [admin]
+      x-scope: base
+      summary: Recent audit log entries (admin)
+      parameters: [{ name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AuditList" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+  /api/v1/admin/maintenance:
+    put:
+      operationId: setMaintenance
+      tags: [admin]
+      x-scope: base
+      summary: Turn maintenance mode on or off (admin)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/MaintenanceRequest" } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/MaintenanceRequest" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+  # @fde:paths (new-feature.mjs inserts operations above this line)
+components:
+  parameters:
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, maxLength: 128 }, description: Unique per user action; replays return the stored response }
+  responses:
+    Error: { description: Error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+  schemas:
+    Ok: { type: object, required: [ok], properties: { ok: { type: boolean } } }
+    SystemStatus: { type: object, required: [ok, maintenance], properties: { ok: { type: boolean }, maintenance: { type: boolean } } }
+    Ready: { type: object, required: [ready], properties: { ready: { type: boolean }, db: { type: string } } }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties: { code: { type: string }, message: { type: string }, requestId: { type: string }, details: {} }
+    User:
+      type: object
+      required: [id, email, role]
+      properties: { id: { type: string }, email: { type: string }, role: { type: string, enum: [admin, member, viewer] }, name: { type: string, nullable: true } }
+    UserEnvelope: { type: object, required: [user], properties: { user: { $ref: "#/components/schemas/User" } } }
+    LoginRequest: { type: object, required: [email, password], additionalProperties: false, properties: { email: { type: string, format: email }, password: { type: string } } }
+    AgentRunRequest: { type: object, required: [input], additionalProperties: false, properties: { input: { type: string, minLength: 5, maxLength: 4000 } } }
+    AgentRun:
+      type: object
+      required: [id, agent, input, status, ms, createdAt]
+      properties:
+        id: { type: string }
+        agent: { type: string }
+        input: { type: string }
+        result: { type: object, additionalProperties: true, nullable: true }
+        status: { type: string, enum: [ok, error] }
+        errorCode: { type: string, nullable: true }
+        ms: { type: number }
+        createdAt: { type: string, format: date-time }
+    AgentRunEnvelope: { type: object, required: [run], properties: { run: { $ref: "#/components/schemas/AgentRun" } } }
+    AgentRunList: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/AgentRun" } } } }
+    AuditEntry:
+      type: object
+      required: [id, at, action]
+      properties: { id: { type: string }, at: { type: string, format: date-time }, action: { type: string }, userId: { type: string, nullable: true }, target: { type: string, nullable: true }, ip: { type: string, nullable: true }, requestId: { type: string, nullable: true } }
+    AuditList: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } } } }
+    MaintenanceRequest: { type: object, required: [enabled], additionalProperties: false, properties: { enabled: { type: boolean } } }
+    Metrics:
+      type: object
+      required: [uptimeSec, requests, agents, jobs, maintenance]
+      properties:
+        uptimeSec: { type: number }
+        maintenance: { type: boolean }
+        requests:
+          type: object
+          required: [total, errors5xx, errorRate, avgMs, latencyBuckets, byRoute]
+          properties:
+            total: { type: number }
+            errors5xx: { type: number }
+            errorRate: { type: number }
+            avgMs: { type: number }
+            latencyBuckets: { type: array, items: { type: object, required: [leMs, count], properties: { leMs: { type: number }, count: { type: number } } } }
+            byRoute: { type: object, additionalProperties: { type: number } }
+        agents:
+          type: object
+          required: [runs, avgMs]
+          properties: { runs: { type: object, additionalProperties: { type: number } }, avgMs: { type: number } }
+        jobs: { type: object, additionalProperties: { type: object, required: [lastRunAt, ok], properties: { lastRunAt: { type: string }, ok: { type: boolean }, info: { type: string } } } }
+    # @fde:schemas (new-feature.mjs inserts schemas above this line)

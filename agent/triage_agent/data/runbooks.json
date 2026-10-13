@@ -1,0 +1,20 @@
+[
+  {"id": "RB-101", "title": "VPN connection drops or fails to connect", "category": "network",
+   "keywords": ["vpn", "connect", "tunnel", "remote", "timeout"],
+   "steps": ["Check status page for the VPN gateway", "Ask user to reconnect and note the exact error", "Escalate to Network team if more than 5 users are affected"]},
+  {"id": "RB-102", "title": "User locked out or password reset failing", "category": "access_identity",
+   "keywords": ["password", "locked", "login", "sso", "mfa", "account", "access"],
+   "steps": ["Verify identity through the approved channel", "Unlock the account in the identity provider", "If MFA device lost, follow the MFA re-enrolment procedure"]},
+  {"id": "RB-103", "title": "Web application returns 5xx errors", "category": "application",
+   "keywords": ["500", "502", "503", "error", "down", "slow", "api", "website", "app"],
+   "steps": ["Check service status and recent deployments", "Collect request IDs and timestamps", "Roll back the last deployment if errors started right after it"]},
+  {"id": "RB-104", "title": "Database slow queries or connection exhaustion", "category": "data",
+   "keywords": ["database", "db", "query", "slow", "connection", "pool", "timeout", "postgres", "mongo"],
+   "steps": ["Check connection pool saturation", "Identify top slow queries", "Escalate to Data platform team before changing indexes"]},
+  {"id": "RB-105", "title": "Suspicious login or phishing report", "category": "security",
+   "keywords": ["phishing", "suspicious", "malware", "breach", "ransomware", "compromised", "security"],
+   "steps": ["Do not delete evidence", "Isolate the affected account or device", "Page the Security on-call immediately"]},
+  {"id": "RB-106", "title": "Laptop or peripheral hardware failure", "category": "hardware",
+   "keywords": ["laptop", "keyboard", "monitor", "battery", "screen", "hardware", "printer"],
+   "steps": ["Run vendor diagnostics", "Offer a loaner device if the user is blocked", "Raise a hardware replacement request"]}
+]

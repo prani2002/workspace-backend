@@ -1,0 +1,30 @@
+# docker compose up -d --build        (mongo + agent + api)
+# docker compose up -d mongo agent    (when running the API with `npm run dev`)
+services:
+  mongo:
+    image: mongo:7
+    ports: ["127.0.0.1:27017:27017"]
+    volumes: ["mongo-data:/data/db"]
+    healthcheck: { test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"], interval: 10s, timeout: 5s, retries: 5 }
+
+  agent:
+    build: ./agent
+    environment:
+      GOOGLE_GENAI_USE_VERTEXAI: "FALSE"
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:?Set GOOGLE_API_KEY (free key: https://aistudio.google.com/apikey)}
+      AGENT_MODEL: ${AGENT_MODEL:-gemini-2.5-flash}
+    ports: ["127.0.0.1:8000:8000"]
+
+  api:
+    build: .
+    depends_on: { mongo: { condition: service_healthy }, agent: { condition: service_started } }
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      MONGODB_URI: mongodb://mongo:27017/fde
+      AGENT_URL: http://agent:8000
+    ports: ["4000:4000"]
+
+volumes:
+  mongo-data:
